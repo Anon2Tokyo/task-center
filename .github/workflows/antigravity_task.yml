@@ -1,0 +1,96 @@
+name: Antigravity Autonomous Task Runner
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  issues: write
+  contents: write
+
+jobs:
+  run-antigravity:
+    # 仅当 Issue 包含 antigravity 标签时触发
+    if: contains(github.event.issue.labels.*.name, 'antigravity')
+    runs-on: self-hosted
+    steps:
+      - name: Checkout task-center repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Task Workspace
+        shell: pwsh
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          $issueDir = "issue-$env:ISSUE_NUMBER"
+          if (-not (Test-Path $issueDir)) {
+              New-Item -ItemType Directory -Path $issueDir -Force | Out-Null
+          }
+          
+          $taskSpec = @"
+          # 任务目标: Issue #$env:ISSUE_NUMBER
+          
+          **标题**: $env:ISSUE_TITLE
+          
+          **需求详情**:
+          $env:ISSUE_BODY
+          "@
+          Set-Content -Path "$issueDir/TASK.md" -Value $taskSpec -Encoding utf8
+          Write-Host "✅ 独立产物区已就绪: $issueDir"
+
+      - name: Acknowledge Issue
+        shell: pwsh
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment $env:ISSUE_NUMBER --body "🤖 **本地反重力 Agent 已通过 Self-Hosted Runner 秒级认领**`n`n已在本地电脑创建专属产物工作区 `task-center/issue-$env:ISSUE_NUMBER`，正在进入 /goal 自主开发模式..."
+
+      - name: Execute Antigravity Agent
+        shell: pwsh
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          python scripts/agent_executor.py $env:ISSUE_NUMBER
+
+      - name: Commit and Push Results
+        shell: pwsh
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          git config user.name "Antigravity Agent"
+          git config user.email "antigravity-agent@google.com"
+          git add "issue-$env:ISSUE_NUMBER"
+          $status = git status --porcelain
+          if ($status) {
+              git commit -m "feat(issue-$env:ISSUE_NUMBER): auto complete task by Antigravity"
+              git push origin main
+          } else {
+              Write-Host "没有文件变动需提交"
+          }
+
+      - name: Complete and Close Issue
+        shell: pwsh
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          $reportContent = ""
+          $reportPath = "issue-$env:ISSUE_NUMBER/REPORT.md"
+          if (Test-Path $reportPath) {
+              $reportContent = Get-Content -Path $reportPath -Raw -Encoding utf8
+          }
+          
+          $comment = @"
+          🎉 **Antigravity 任务执行完毕**
+          
+          产物已同步至 `task-center/issue-$env:ISSUE_NUMBER`。
+          
+          ---
+          
+          $reportContent
+          "@
+          gh issue comment $env:ISSUE_NUMBER --body $comment
+          gh issue close $env:ISSUE_NUMBER
