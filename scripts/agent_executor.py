@@ -33,6 +33,26 @@ def get_gcloud_token() -> str:
         return res.stdout.strip()
 
 
+def init_workspace(issue_number: str) -> Path:
+    """Initialize issue workspace directory and TASK.md using UTF-8."""
+    base_dir = Path(__file__).resolve().parent.parent
+    issue_dir = base_dir / f"issue-{issue_number}"
+    issue_dir.mkdir(parents=True, exist_ok=True)
+    task_file = issue_dir / "TASK.md"
+
+    title = os.environ.get("ISSUE_TITLE", "")
+    body = os.environ.get("ISSUE_BODY", "")
+
+    task_content = (
+        f"# 任务目标: Issue #{issue_number}\n\n"
+        f"**标题**: {title}\n\n"
+        f"**需求详情**:\n{body}\n"
+    )
+    task_file.write_text(task_content, encoding="utf-8")
+    print(f"[*] Workspace and TASK.md initialized with UTF-8: {task_file}")
+    return issue_dir
+
+
 def run_agent(issue_number: str):
     base_dir = Path(__file__).resolve().parent.parent
     issue_dir = base_dir / f"issue-{issue_number}"
@@ -40,8 +60,7 @@ def run_agent(issue_number: str):
     report_file = issue_dir / "REPORT.md"
 
     if not task_file.exists():
-        print(f"[!] TASK.md not found in {issue_dir}")
-        return
+        init_workspace(issue_number)
 
     task_content = task_file.read_text(encoding="utf-8")
     print(f"[*] Starting Antigravity Agent for Issue #{issue_number}...")
@@ -152,6 +171,13 @@ def run_agent(issue_number: str):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python agent_executor.py <issue_number>")
+        print("Usage: python agent_executor.py [init] <issue_number>")
         sys.exit(1)
-    run_agent(sys.argv[1])
+
+    if sys.argv[1] == "init":
+        if len(sys.argv) < 3:
+            print("Usage: python agent_executor.py init <issue_number>")
+            sys.exit(1)
+        init_workspace(sys.argv[2])
+    else:
+        run_agent(sys.argv[1])

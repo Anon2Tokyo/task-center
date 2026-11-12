@@ -26,20 +26,11 @@ jobs:
           ISSUE_TITLE: ${{ github.event.issue.title }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
+          $OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
           $issueDir = "issue-$env:ISSUE_NUMBER"
-          if (-not (Test-Path $issueDir)) {
-              New-Item -ItemType Directory -Path $issueDir -Force | Out-Null
-          }
           
-          $taskSpec = @"
-          # 任务目标: Issue #$env:ISSUE_NUMBER
-          
-          **标题**: $env:ISSUE_TITLE
-          
-          **需求详情**:
-          $env:ISSUE_BODY
-          "@
-          Set-Content -Path "$issueDir/TASK.md" -Value $taskSpec -Encoding utf8
+          # 由 Python 以原生 UTF-8 初始化工作区和 TASK.md，规避 PowerShell 5.1 代码页乱码
+          python scripts/agent_executor.py init $env:ISSUE_NUMBER
           Write-Host "✅ 独立产物区已就绪: $issueDir"
 
           # 自动唤起反重力桌面端并聚焦于该任务工作区
@@ -55,6 +46,7 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
+          $OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
           gh issue comment $env:ISSUE_NUMBER --body "🤖 **本地反重力 Agent 已通过 Self-Hosted Runner 秒级认领**`n`n已在本地电脑创建专属产物工作区 `task-center/issue-$env:ISSUE_NUMBER`，正在进入 /goal 自主开发模式..."
 
       - name: Execute Antigravity Agent
@@ -62,6 +54,7 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
+          $OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
           python scripts/agent_executor.py $env:ISSUE_NUMBER
 
       - name: Commit and Push Results
@@ -69,6 +62,7 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
+          $OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
           git config user.name "Antigravity Agent"
           git config user.email "antigravity-agent@google.com"
           git add "issue-$env:ISSUE_NUMBER"
@@ -85,10 +79,11 @@ jobs:
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
+          $OutputEncoding = [Console]::InputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
           $reportContent = ""
           $reportPath = "issue-$env:ISSUE_NUMBER/REPORT.md"
           if (Test-Path $reportPath) {
-              $reportContent = Get-Content -Path $reportPath -Raw -Encoding utf8
+              $reportContent = [System.IO.File]::ReadAllText((Resolve-Path $reportPath), [System.Text.Encoding]::UTF8)
           }
           
           $comment = @"
@@ -100,5 +95,8 @@ jobs:
           
           $reportContent
           "@
-          gh issue comment $env:ISSUE_NUMBER --body $comment
+          $tempComment = [System.IO.Path]::GetTempFileName()
+          [System.IO.File]::WriteAllText($tempComment, $comment, [System.Text.Encoding]::UTF8)
+          gh issue comment $env:ISSUE_NUMBER --body-file $tempComment
+          Remove-Item -Force $tempComment -ErrorAction SilentlyContinue
           gh issue close $env:ISSUE_NUMBER
