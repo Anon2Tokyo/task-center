@@ -42,6 +42,14 @@ jobs:
           Set-Content -Path "$issueDir/TASK.md" -Value $taskSpec -Encoding utf8
           Write-Host "✅ 独立产物区已就绪: $issueDir"
 
+          # 自动唤起反重力桌面端并聚焦于该任务工作区
+          $antigravityExe = "$env:LOCALAPPDATA\Programs\antigravity\Antigravity.exe"
+          if (Test-Path $antigravityExe) {
+              $fullPath = (Resolve-Path $issueDir).Path
+              Write-Host "🚀 正在反重力桌面端打开工作区: $fullPath"
+              Start-Process $antigravityExe -ArgumentList "`"$fullPath`""
+          }
+
       - name: Acknowledge Issue
         shell: powershell
         env:
