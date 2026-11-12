@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Task Workspace
-        shell: pwsh
+        shell: powershell
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
@@ -43,21 +43,21 @@ jobs:
           Write-Host "✅ 独立产物区已就绪: $issueDir"
 
       - name: Acknowledge Issue
-        shell: pwsh
+        shell: powershell
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           gh issue comment $env:ISSUE_NUMBER --body "🤖 **本地反重力 Agent 已通过 Self-Hosted Runner 秒级认领**`n`n已在本地电脑创建专属产物工作区 `task-center/issue-$env:ISSUE_NUMBER`，正在进入 /goal 自主开发模式..."
 
       - name: Execute Antigravity Agent
-        shell: pwsh
+        shell: powershell
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           python scripts/agent_executor.py $env:ISSUE_NUMBER
 
       - name: Commit and Push Results
-        shell: pwsh
+        shell: powershell
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
@@ -73,7 +73,7 @@ jobs:
           }
 
       - name: Complete and Close Issue
-        shell: pwsh
+        shell: powershell
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
